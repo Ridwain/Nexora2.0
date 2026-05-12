@@ -76,6 +76,10 @@ data class ListCrmContactsRequest(
     @SerializedName("p_tenant_id") val tenantId: String
 )
 
+data class ListArchivedCrmContactsRequest(
+    @SerializedName("p_tenant_id") val tenantId: String
+)
+
 data class GetCrmContactRequest(
     @SerializedName("p_tenant_id") val tenantId: String,
     @SerializedName("p_contact_id") val contactId: String
@@ -113,6 +117,11 @@ data class ArchiveCrmContactRequest(
     @SerializedName("p_contact_id") val contactId: String
 )
 
+data class RestoreCrmContactRequest(
+    @SerializedName("p_tenant_id") val tenantId: String,
+    @SerializedName("p_contact_id") val contactId: String
+)
+
 data class CrmContactDto(
     val id: String? = null,
     @SerializedName("tenant_id") val tenantId: String? = null,
@@ -127,6 +136,7 @@ data class CrmContactDto(
     @SerializedName("lead_status") val leadStatus: String? = null,
     val source: String? = null,
     val notes: String? = null,
+    @SerializedName("archived_at") val archivedAt: String? = null,
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("updated_at") val updatedAt: String? = null
 ) {
@@ -144,6 +154,7 @@ data class CrmContactDto(
         leadStatus = leadStatus ?: "new",
         source = source,
         notes = notes,
+        archivedAt = archivedAt,
         createdAt = createdAt,
         updatedAt = updatedAt
     )

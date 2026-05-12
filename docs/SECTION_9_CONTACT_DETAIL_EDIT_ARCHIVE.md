@@ -13,6 +13,12 @@ Archive contact -> Hide from active lists
 
 Archive is a soft delete. It sets `archived_at` and keeps the row in `public.crm_contacts`.
 
+Section 9.1 adds archived-contact recovery:
+
+```text
+Contacts tab -> Archived -> Restore contact -> Active contacts
+```
+
 ## Database And RPC
 Added migration:
 
@@ -28,6 +34,19 @@ public.update_crm_contact(...)
 public.archive_crm_contact(p_tenant_id uuid, p_contact_id uuid)
 ```
 
+Section 9.1 migration added:
+
+```text
+supabase/migrations/20260512_000011_crm_contact_restore.sql
+```
+
+Additional public RPCs:
+
+```text
+public.list_archived_crm_contacts(p_tenant_id uuid)
+public.restore_crm_contact(p_tenant_id uuid, p_contact_id uuid)
+```
+
 Private implementation functions enforce:
 
 ```text
@@ -41,6 +60,8 @@ Behavior:
 get_crm_contact returns one non-archived tenant contact.
 update_crm_contact trims fields, requires first_name, validates lifecycle/status, updates updated_by, and writes crm_contact_updated audit event.
 archive_crm_contact sets archived_at, updates updated_by, writes crm_contact_archived audit event, and removes the contact from active list results.
+list_archived_crm_contacts returns archived contacts for the tenant only.
+restore_crm_contact clears archived_at, updates updated_by, writes crm_contact_restored audit event, and makes the contact active again.
 ```
 
 No direct authenticated update/delete is exposed from Android. Writes stay behind RPCs.
@@ -52,9 +73,13 @@ RPC layer added:
 RpcRepository.getCrmContact(tenantId, contactId)
 RpcRepository.updateCrmContact(...)
 RpcRepository.archiveCrmContact(tenantId, contactId)
+RpcRepository.listArchivedCrmContacts(tenantId)
+RpcRepository.restoreCrmContact(tenantId, contactId)
 SupabaseRpcApi rpc/get_crm_contact
 SupabaseRpcApi rpc/update_crm_contact
 SupabaseRpcApi rpc/archive_crm_contact
+SupabaseRpcApi rpc/list_archived_crm_contacts
+SupabaseRpcApi rpc/restore_crm_contact
 ```
 
 Contacts memory cache was extended:
@@ -63,6 +88,9 @@ Contacts memory cache was extended:
 contactFor(tenantId, contactId)
 upsert(tenantId, contact)
 remove(tenantId, contactId)
+archivedContactsFor(tenantId)
+putArchived(tenantId, contacts)
+removeArchived(tenantId, contactId)
 ```
 
 New screens:
@@ -70,6 +98,7 @@ New screens:
 ```text
 ContactDetailScreen
 EditContactScreen
+ArchivedContactsScreen
 ```
 
 New routes:
@@ -77,6 +106,7 @@ New routes:
 ```text
 contact_detail/{tenantId}/{tenantName}/{contactId}
 edit_contact/{tenantId}/{tenantName}/{contactId}
+archived_contacts/{tenantId}/{tenantName}
 ```
 
 Workspace route now supports an initial tab query so archive can return the user to Contacts:
@@ -126,6 +156,16 @@ archive success removes contact from memory cache
 archive success returns to workspace Contacts tab
 ```
 
+Archived contacts:
+
+```text
+Contacts tab has an Archived action.
+Archived screen lists soft-deleted contacts for the current tenant.
+Restore asks for confirmation before changing the record.
+Restore moves the contact back to active contacts.
+Restore updates memory cache so Contacts can show the restored record without a full reload.
+```
+
 ## Tenant Isolation
 Section 9 keeps the same isolation model as Section 8:
 
@@ -133,7 +173,10 @@ Section 9 keeps the same isolation model as Section 8:
 Contact row belongs to one tenant_id.
 RPCs require owner/employee access for that tenant.
 Archived contacts do not appear in list_crm_contacts.
+Archived contacts appear only in list_archived_crm_contacts.
+Restored contacts appear again in list_crm_contacts.
 Other tenants cannot get, edit, or archive the contact.
+Other tenants cannot list archived records or restore them.
 ```
 
 ## Verification Completed
@@ -180,6 +223,9 @@ tap contact card and open detail
 edit contact and verify detail/list/dashboard update
 archive contact and verify it disappears from active list
 reopen company and verify archived contact stays hidden
+open Archived contacts
+restore contact
+verify contact appears in active Contacts again
 ```
 
 ## Deferred Work
@@ -187,7 +233,6 @@ Not included in Section 9:
 
 ```text
 hard delete
-restore archived contact
 contact activity timeline
 notes history
 search

@@ -7,6 +7,7 @@ import javax.inject.Singleton
 @Singleton
 class ContactsMemoryCache @Inject constructor() {
     private val contactsByTenant = mutableMapOf<String, List<CrmContact>>()
+    private val archivedContactsByTenant = mutableMapOf<String, List<CrmContact>>()
 
     fun contactsFor(tenantId: String): List<CrmContact>? {
         return synchronized(contactsByTenant) {
@@ -26,6 +27,18 @@ class ContactsMemoryCache @Inject constructor() {
         }
     }
 
+    fun archivedContactsFor(tenantId: String): List<CrmContact>? {
+        return synchronized(archivedContactsByTenant) {
+            archivedContactsByTenant[tenantId]
+        }
+    }
+
+    fun putArchived(tenantId: String, contacts: List<CrmContact>) {
+        synchronized(archivedContactsByTenant) {
+            archivedContactsByTenant[tenantId] = contacts
+        }
+    }
+
     fun upsert(tenantId: String, contact: CrmContact) {
         synchronized(contactsByTenant) {
             val contacts = contactsByTenant[tenantId].orEmpty()
@@ -40,6 +53,13 @@ class ContactsMemoryCache @Inject constructor() {
     fun remove(tenantId: String, contactId: String) {
         synchronized(contactsByTenant) {
             contactsByTenant[tenantId] = contactsByTenant[tenantId].orEmpty()
+                .filterNot { it.id == contactId }
+        }
+    }
+
+    fun removeArchived(tenantId: String, contactId: String) {
+        synchronized(archivedContactsByTenant) {
+            archivedContactsByTenant[tenantId] = archivedContactsByTenant[tenantId].orEmpty()
                 .filterNot { it.id == contactId }
         }
     }

@@ -23,6 +23,12 @@ interface SupabaseRpcApi {
         @Body request: ListCrmContactsRequest
     ): List<CrmContactDto>
 
+    @POST("rpc/list_archived_crm_contacts")
+    suspend fun listArchivedCrmContacts(
+        @Header("Authorization") authorization: String,
+        @Body request: ListArchivedCrmContactsRequest
+    ): List<CrmContactDto>
+
     @POST("rpc/get_crm_contact")
     suspend fun getCrmContact(
         @Header("Authorization") authorization: String,
@@ -45,6 +51,12 @@ interface SupabaseRpcApi {
     suspend fun archiveCrmContact(
         @Header("Authorization") authorization: String,
         @Body request: ArchiveCrmContactRequest
+    ): CrmContactDto
+
+    @POST("rpc/restore_crm_contact")
+    suspend fun restoreCrmContact(
+        @Header("Authorization") authorization: String,
+        @Body request: RestoreCrmContactRequest
     ): CrmContactDto
 
     @POST("rpc/create_owner_tenant")

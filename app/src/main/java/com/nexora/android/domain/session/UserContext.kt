@@ -38,6 +38,7 @@ data class CrmContact(
     val leadStatus: String,
     val source: String?,
     val notes: String?,
+    val archivedAt: String?,
     val createdAt: String?,
     val updatedAt: String?
 )

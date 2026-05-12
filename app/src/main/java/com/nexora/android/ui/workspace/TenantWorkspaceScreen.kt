@@ -24,6 +24,7 @@ import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Handshake
 import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material3.AssistChip
@@ -73,6 +74,7 @@ fun TenantWorkspaceScreen(
     tenantName: String,
     initialTab: String,
     onAddContact: (tenantId: String, tenantName: String) -> Unit,
+    onOpenArchivedContacts: (tenantId: String, tenantName: String) -> Unit,
     onOpenContact: (tenantId: String, tenantName: String, contactId: String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -152,6 +154,7 @@ fun TenantWorkspaceScreen(
                             tenantId = tenantId,
                             tenantName = tenantName,
                             onAddContact = onAddContact,
+                            onOpenArchivedContacts = onOpenArchivedContacts,
                             onOpenContact = onOpenContact
                         )
                         CrmWorkspaceTab.Companies -> ModulePlaceholder(
@@ -475,6 +478,7 @@ private fun ContactsTab(
     tenantId: String,
     tenantName: String,
     onAddContact: (tenantId: String, tenantName: String) -> Unit,
+    onOpenArchivedContacts: (tenantId: String, tenantName: String) -> Unit,
     onOpenContact: (tenantId: String, tenantName: String, contactId: String) -> Unit,
     viewModel: ContactsViewModel = hiltViewModel()
 ) {
@@ -517,6 +521,11 @@ private fun ContactsTab(
                     Button(onClick = { onAddContact(tenantId, tenantName) }) {
                         Text(text = "Add contact")
                     }
+                    AssistChip(
+                        onClick = { onOpenArchivedContacts(tenantId, tenantName) },
+                        label = { Text(text = "Archived") },
+                        leadingIcon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) }
+                    )
                     AssistChip(
                         onClick = { viewModel.load(tenantId) },
                         label = { Text(text = "Refresh") }

@@ -21,6 +21,7 @@ import com.nexora.android.ui.context.ContextPickerScreen
 import com.nexora.android.ui.owner.CreateOwnerTenantScreen
 import com.nexora.android.ui.splash.SplashScreen
 import com.nexora.android.ui.workspace.AddContactScreen
+import com.nexora.android.ui.workspace.ArchivedContactsScreen
 import com.nexora.android.ui.workspace.ContactDetailScreen
 import com.nexora.android.ui.workspace.CrmWorkspaceTab
 import com.nexora.android.ui.workspace.EditContactScreen
@@ -38,6 +39,7 @@ object Routes {
     const val OwnerOnboarding = "owner_onboarding"
     const val Workspace = "workspace"
     const val AddContact = "add_contact"
+    const val ArchivedContacts = "archived_contacts"
     const val ContactDetail = "contact_detail"
     const val EditContact = "edit_contact"
 
@@ -53,6 +55,9 @@ object Routes {
 
     fun addContact(tenantId: String, tenantName: String): String =
         "$AddContact/${Uri.encode(tenantId)}/${Uri.encode(tenantName)}"
+
+    fun archivedContacts(tenantId: String, tenantName: String): String =
+        "$ArchivedContacts/${Uri.encode(tenantId)}/${Uri.encode(tenantName)}"
 
     fun contactDetail(tenantId: String, tenantName: String, contactId: String): String =
         "$ContactDetail/${Uri.encode(tenantId)}/${Uri.encode(tenantName)}/${Uri.encode(contactId)}"
@@ -167,6 +172,9 @@ fun AppNavGraph() {
                 onAddContact = { tenantId, tenantName ->
                     navController.navigate(Routes.addContact(tenantId, tenantName))
                 },
+                onOpenArchivedContacts = { tenantId, tenantName ->
+                    navController.navigate(Routes.archivedContacts(tenantId, tenantName))
+                },
                 onOpenContact = { selectedTenantId, selectedTenantName, contactId ->
                     navController.navigate(Routes.contactDetail(selectedTenantId, selectedTenantName, contactId))
                 },
@@ -185,6 +193,19 @@ fun AppNavGraph() {
                 tenantName = backStackEntry.arguments?.getString("tenantName") ?: "Nexora workspace",
                 onBack = { navController.navigateUp() },
                 onCreated = { navController.navigateUp() }
+            )
+        }
+        composable(
+            route = "${Routes.ArchivedContacts}/{tenantId}/{tenantName}",
+            arguments = listOf(
+                navArgument("tenantId") { type = NavType.StringType },
+                navArgument("tenantName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            ArchivedContactsScreen(
+                tenantId = backStackEntry.arguments?.getString("tenantId").orEmpty(),
+                tenantName = backStackEntry.arguments?.getString("tenantName") ?: "Nexora workspace",
+                onBack = { navController.navigateUp() }
             )
         }
         composable(

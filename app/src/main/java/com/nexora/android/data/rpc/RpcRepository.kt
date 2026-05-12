@@ -17,6 +17,8 @@ interface RpcRepository {
 
     suspend fun listCrmContacts(tenantId: String): NexoraResult<List<CrmContact>>
 
+    suspend fun listArchivedCrmContacts(tenantId: String): NexoraResult<List<CrmContact>>
+
     suspend fun getCrmContact(
         tenantId: String,
         contactId: String
@@ -50,6 +52,11 @@ interface RpcRepository {
     ): NexoraResult<CrmContact>
 
     suspend fun archiveCrmContact(
+        tenantId: String,
+        contactId: String
+    ): NexoraResult<CrmContact>
+
+    suspend fun restoreCrmContact(
         tenantId: String,
         contactId: String
     ): NexoraResult<CrmContact>

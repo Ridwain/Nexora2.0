@@ -44,6 +44,14 @@ class SupabaseRpcRepository @Inject constructor(
             ).map(CrmContactDto::toDomain)
         }
 
+    override suspend fun listArchivedCrmContacts(tenantId: String): NexoraResult<List<CrmContact>> =
+        authenticatedCall { authorization ->
+            rpcApi.listArchivedCrmContacts(
+                authorization = authorization,
+                request = ListArchivedCrmContactsRequest(tenantId = tenantId)
+            ).map(CrmContactDto::toDomain)
+        }
+
     override suspend fun getCrmContact(
         tenantId: String,
         contactId: String
@@ -121,6 +129,16 @@ class SupabaseRpcRepository @Inject constructor(
         rpcApi.archiveCrmContact(
             authorization = authorization,
             request = ArchiveCrmContactRequest(tenantId = tenantId, contactId = contactId)
+        ).toDomain()
+    }
+
+    override suspend fun restoreCrmContact(
+        tenantId: String,
+        contactId: String
+    ): NexoraResult<CrmContact> = authenticatedCall { authorization ->
+        rpcApi.restoreCrmContact(
+            authorization = authorization,
+            request = RestoreCrmContactRequest(tenantId = tenantId, contactId = contactId)
         ).toDomain()
     }
 

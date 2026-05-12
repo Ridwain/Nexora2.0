@@ -155,10 +155,12 @@ class FakeRpcRepository : RpcRepository {
     var lastOwnerTenantEmail: String? = null
     var lastOwnerTenantPhone: String? = null
     var listCrmContactsCalls = 0
+    var listArchivedCrmContactsCalls = 0
     var getCrmContactCalls = 0
     var createCrmContactCalls = 0
     var updateCrmContactCalls = 0
     var archiveCrmContactCalls = 0
+    var restoreCrmContactCalls = 0
     var lastCrmContactTenantId: String? = null
     var lastCrmContactId: String? = null
     var lastCrmContactFirstName: String? = null
@@ -166,11 +168,13 @@ class FakeRpcRepository : RpcRepository {
     var getUserContextsResult: NexoraResult<List<UserContext>> = NexoraResult.Success(emptyList())
     var createOwnerTenantResult: NexoraResult<UserContext> = NexoraResult.Success(testContext())
     var listCrmContactsResult: NexoraResult<List<CrmContact>> = NexoraResult.Success(emptyList())
+    var listArchivedCrmContactsResult: NexoraResult<List<CrmContact>> = NexoraResult.Success(emptyList())
     var listCrmContactsHandler: (suspend (String) -> NexoraResult<List<CrmContact>>)? = null
     var getCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
     var createCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
     var updateCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
     var archiveCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
+    var restoreCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
 
     override suspend fun ensureUserProfile(
         displayName: String?,
@@ -194,6 +198,12 @@ class FakeRpcRepository : RpcRepository {
             return handler(tenantId)
         }
         return listCrmContactsResult
+    }
+
+    override suspend fun listArchivedCrmContacts(tenantId: String): NexoraResult<List<CrmContact>> {
+        listArchivedCrmContactsCalls++
+        lastCrmContactTenantId = tenantId
+        return listArchivedCrmContactsResult
     }
 
     override suspend fun getCrmContact(tenantId: String, contactId: String): NexoraResult<CrmContact> {
@@ -248,6 +258,13 @@ class FakeRpcRepository : RpcRepository {
         lastCrmContactTenantId = tenantId
         lastCrmContactId = contactId
         return archiveCrmContactResult
+    }
+
+    override suspend fun restoreCrmContact(tenantId: String, contactId: String): NexoraResult<CrmContact> {
+        restoreCrmContactCalls++
+        lastCrmContactTenantId = tenantId
+        lastCrmContactId = contactId
+        return restoreCrmContactResult
     }
 
     override suspend fun createOwnerTenant(
@@ -336,6 +353,7 @@ fun testContact(): CrmContact = CrmContact(
     leadStatus = "new",
     source = "Website",
     notes = null,
+    archivedAt = null,
     createdAt = "2026-05-12T00:00:00Z",
     updatedAt = "2026-05-12T00:00:00Z"
 )
