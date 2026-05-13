@@ -19,6 +19,28 @@ Section 9.1 adds archived-contact recovery:
 Contacts tab -> Archived -> Restore contact -> Active contacts
 ```
 
+## Section 9.1 Add-On: Archived Contacts Restore
+After manual testing Section 9, we found a product gap: archive was reversible in the database model because it was a soft delete, but the app had no way to restore/unarchive a contact.
+
+Section 9.1 fixed that gap without adding hard delete or changing the active contacts architecture.
+
+Implemented flow:
+
+```text
+Contacts tab
+-> Archived
+-> Archived Contacts screen
+-> Restore
+-> Confirm restore
+-> Contact returns to active Contacts list
+```
+
+Section 9.1 commit:
+
+```text
+cd50f44 Add archived contact restore flow
+```
+
 ## Database And RPC
 Added migration:
 
@@ -64,6 +86,14 @@ list_archived_crm_contacts returns archived contacts for the tenant only.
 restore_crm_contact clears archived_at, updates updated_by, writes crm_contact_restored audit event, and makes the contact active again.
 ```
 
+Section 9.1 also updates `private.crm_contact_json` to include:
+
+```text
+archived_at
+```
+
+This lets Android show when an archived contact was archived.
+
 No direct authenticated update/delete is exposed from Android. Writes stay behind RPCs.
 
 ## Android Changes
@@ -93,12 +123,27 @@ putArchived(tenantId, contacts)
 removeArchived(tenantId, contactId)
 ```
 
+Section 9.1 cache behavior:
+
+```text
+Archived list is cached separately from active list.
+Restore removes the contact from archived cache.
+Restore upserts the contact into active contacts cache.
+Returning to Contacts can show the restored record without waiting for a full reload.
+```
+
 New screens:
 
 ```text
 ContactDetailScreen
 EditContactScreen
 ArchivedContactsScreen
+```
+
+New ViewModel:
+
+```text
+ArchivedContactsViewModel
 ```
 
 New routes:
@@ -166,6 +211,16 @@ Restore moves the contact back to active contacts.
 Restore updates memory cache so Contacts can show the restored record without a full reload.
 ```
 
+Archived screen states:
+
+```text
+loading archived contacts
+empty archived list
+load error with retry
+restore confirmation dialog
+restore failure message while keeping the archived contact visible
+```
+
 ## Tenant Isolation
 Section 9 keeps the same isolation model as Section 8:
 
@@ -201,10 +256,28 @@ Result:
 
 ```text
 crm_contact_detail_edit_archive migration is applied.
+crm_contact_restore migration is applied.
 get_crm_contact, update_crm_contact, and archive_crm_contact exist in public schema.
+list_archived_crm_contacts and restore_crm_contact exist in public schema.
 private implementation functions exist.
 Security advisor has no Section 9-specific issue.
 Performance advisor shows older tuning/unused-index items, not a new Section 9 blocker.
+```
+
+Section 9.1 Android tests added:
+
+```text
+ArchivedContactsViewModelTest
+```
+
+Test coverage includes:
+
+```text
+archived contacts load success
+archived contacts first-load failure
+restore requires selected contact/confirmation state
+restore success moves contact from archived cache to active cache
+restore failure keeps archived contact visible
 ```
 
 Final Android build verification:
