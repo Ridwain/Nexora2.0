@@ -8,6 +8,8 @@ import com.nexora.android.data.auth.PendingSignupVerificationStore
 import com.nexora.android.data.rpc.CustomerIdentityDto
 import com.nexora.android.data.rpc.RpcRepository
 import com.nexora.android.data.rpc.UserProfileDto
+import com.nexora.android.domain.session.ContactTimelineItem
+import com.nexora.android.domain.session.ContactTimelineItemType
 import com.nexora.android.domain.session.CrmContact
 import com.nexora.android.domain.session.CustomerInviteResult
 import com.nexora.android.domain.session.EmployeeInviteResult
@@ -158,6 +160,8 @@ class FakeRpcRepository : RpcRepository {
     var listArchivedCrmContactsCalls = 0
     var searchCrmContactsCalls = 0
     var getCrmContactCalls = 0
+    var listContactTimelineCalls = 0
+    var createContactNoteCalls = 0
     var createCrmContactCalls = 0
     var updateCrmContactCalls = 0
     var archiveCrmContactCalls = 0
@@ -170,6 +174,7 @@ class FakeRpcRepository : RpcRepository {
     var lastCrmContactLifecycleStage: String? = null
     var lastCrmContactLeadStatus: String? = null
     var lastCrmContactSort: String? = null
+    var lastContactNoteBody: String? = null
     var getUserContextsResult: NexoraResult<List<UserContext>> = NexoraResult.Success(emptyList())
     var createOwnerTenantResult: NexoraResult<UserContext> = NexoraResult.Success(testContext())
     var listCrmContactsResult: NexoraResult<List<CrmContact>> = NexoraResult.Success(emptyList())
@@ -184,6 +189,8 @@ class FakeRpcRepository : RpcRepository {
         sort: String
     ) -> NexoraResult<List<CrmContact>>)? = null
     var getCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
+    var listContactTimelineResult: NexoraResult<List<ContactTimelineItem>> = NexoraResult.Success(emptyList())
+    var createContactNoteResult: NexoraResult<ContactTimelineItem> = NexoraResult.Success(testTimelineNote())
     var createCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
     var updateCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
     var archiveCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
@@ -244,6 +251,28 @@ class FakeRpcRepository : RpcRepository {
         lastCrmContactTenantId = tenantId
         lastCrmContactId = contactId
         return getCrmContactResult
+    }
+
+    override suspend fun listContactTimeline(
+        tenantId: String,
+        contactId: String
+    ): NexoraResult<List<ContactTimelineItem>> {
+        listContactTimelineCalls++
+        lastCrmContactTenantId = tenantId
+        lastCrmContactId = contactId
+        return listContactTimelineResult
+    }
+
+    override suspend fun createContactNote(
+        tenantId: String,
+        contactId: String,
+        body: String
+    ): NexoraResult<ContactTimelineItem> {
+        createContactNoteCalls++
+        lastCrmContactTenantId = tenantId
+        lastCrmContactId = contactId
+        lastContactNoteBody = body
+        return createContactNoteResult
     }
 
     override suspend fun createCrmContact(
@@ -389,4 +418,13 @@ fun testContact(): CrmContact = CrmContact(
     archivedAt = null,
     createdAt = "2026-05-12T00:00:00Z",
     updatedAt = "2026-05-12T00:00:00Z"
+)
+
+fun testTimelineNote(): ContactTimelineItem = ContactTimelineItem(
+    id = "timeline-note-id",
+    type = ContactTimelineItemType.Note,
+    body = "Follow up next week.",
+    eventType = null,
+    actorUserId = "user-id",
+    createdAt = "2026-05-15T00:00:00Z"
 )

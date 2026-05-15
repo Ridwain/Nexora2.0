@@ -3,6 +3,7 @@ package com.nexora.android.ui.workspace
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nexora.android.data.rpc.RpcRepository
+import com.nexora.android.domain.session.ContactTimelineItem
 import com.nexora.android.domain.session.CrmContact
 import com.nexora.android.domain.session.NexoraResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -75,6 +76,77 @@ class ContactDetailViewModel @Inject constructor(
                 }
             }
         }
+
+        loadTimeline(tenantId, contactId)
+    }
+
+    fun loadTimeline(tenantId: String, contactId: String) {
+        if (tenantId.isBlank() || contactId.isBlank()) {
+            _uiState.update { it.copy(timelineErrorMessage = "Missing contact context.") }
+            return
+        }
+
+        val state = _uiState.value
+        if (state.isTimelineLoading) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isTimelineLoading = true, timelineErrorMessage = null) }
+            when (val result = rpcRepository.listContactTimeline(tenantId, contactId)) {
+                is NexoraResult.Failure -> _uiState.update {
+                    it.copy(
+                        isTimelineLoading = false,
+                        timelineErrorMessage = result.error.message
+                    )
+                }
+                is NexoraResult.Success -> _uiState.update {
+                    it.copy(
+                        isTimelineLoading = false,
+                        timelineItems = result.value,
+                        timelineErrorMessage = null
+                    )
+                }
+            }
+        }
+    }
+
+    fun onNoteBodyChanged(body: String) {
+        _uiState.update {
+            it.copy(
+                noteBody = body.take(MaxNoteBodyLength),
+                addNoteErrorMessage = null
+            )
+        }
+    }
+
+    fun addNote(tenantId: String, contactId: String) {
+        val state = _uiState.value
+        val body = state.noteBody.trim()
+        if (state.isAddingNote) return
+        if (body.isBlank()) {
+            _uiState.update { it.copy(addNoteErrorMessage = "Write a note before adding it.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAddingNote = true, addNoteErrorMessage = null) }
+            when (val result = rpcRepository.createContactNote(tenantId, contactId, body)) {
+                is NexoraResult.Failure -> _uiState.update {
+                    it.copy(
+                        isAddingNote = false,
+                        addNoteErrorMessage = result.error.message
+                    )
+                }
+                is NexoraResult.Success -> _uiState.update {
+                    it.copy(
+                        isAddingNote = false,
+                        noteBody = "",
+                        timelineItems = listOf(result.value) + it.timelineItems,
+                        addNoteErrorMessage = null,
+                        timelineErrorMessage = null
+                    )
+                }
+            }
+        }
     }
 
     fun showArchiveDialog() {
@@ -113,6 +185,10 @@ class ContactDetailViewModel @Inject constructor(
             }
         }
     }
+
+    companion object {
+        const val MaxNoteBodyLength = 2000
+    }
 }
 
 data class ContactDetailUiState(
@@ -124,5 +200,11 @@ data class ContactDetailUiState(
     val showArchiveDialog: Boolean = false,
     val isArchiving: Boolean = false,
     val archiveErrorMessage: String? = null,
-    val archived: Boolean = false
+    val archived: Boolean = false,
+    val timelineItems: List<ContactTimelineItem> = emptyList(),
+    val isTimelineLoading: Boolean = false,
+    val timelineErrorMessage: String? = null,
+    val noteBody: String = "",
+    val isAddingNote: Boolean = false,
+    val addNoteErrorMessage: String? = null
 )

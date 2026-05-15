@@ -14,3 +14,4 @@ Implemented sections:
 - Section 8: tenant-scoped CRM contacts foundation.
 - Section 9: contact detail, edit, and archive.
 - Section 10: contact live search, filters, and sorting.
+- Section 11: contact notes and timeline foundation.

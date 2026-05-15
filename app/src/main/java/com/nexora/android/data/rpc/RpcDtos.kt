@@ -1,6 +1,8 @@
 package com.nexora.android.data.rpc
 
 import com.google.gson.annotations.SerializedName
+import com.nexora.android.domain.session.ContactTimelineItem
+import com.nexora.android.domain.session.ContactTimelineItemType
 import com.nexora.android.domain.session.CrmContact
 import com.nexora.android.domain.session.CustomerInviteResult
 import com.nexora.android.domain.session.EmployeeInviteResult
@@ -94,6 +96,17 @@ data class GetCrmContactRequest(
     @SerializedName("p_contact_id") val contactId: String
 )
 
+data class ListContactTimelineRequest(
+    @SerializedName("p_tenant_id") val tenantId: String,
+    @SerializedName("p_contact_id") val contactId: String
+)
+
+data class CreateContactNoteRequest(
+    @SerializedName("p_tenant_id") val tenantId: String,
+    @SerializedName("p_contact_id") val contactId: String,
+    @SerializedName("p_body") val body: String
+)
+
 data class CreateCrmContactRequest(
     @SerializedName("p_tenant_id") val tenantId: String,
     @SerializedName("p_first_name") val firstName: String,
@@ -166,6 +179,28 @@ data class CrmContactDto(
         archivedAt = archivedAt,
         createdAt = createdAt,
         updatedAt = updatedAt
+    )
+}
+
+data class ContactTimelineItemDto(
+    val id: String? = null,
+    val type: String? = null,
+    val body: String? = null,
+    @SerializedName("event_type") val eventType: String? = null,
+    @SerializedName("actor_user_id") val actorUserId: String? = null,
+    @SerializedName("created_at") val createdAt: String? = null
+) {
+    fun toDomain(): ContactTimelineItem = ContactTimelineItem(
+        id = id.orEmpty(),
+        type = when (type) {
+            "note" -> ContactTimelineItemType.Note
+            "event" -> ContactTimelineItemType.Event
+            else -> ContactTimelineItemType.Unknown
+        },
+        body = body,
+        eventType = eventType,
+        actorUserId = actorUserId,
+        createdAt = createdAt
     )
 }
 

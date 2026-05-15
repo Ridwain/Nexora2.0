@@ -5,6 +5,7 @@ import com.nexora.android.core.network.ApiErrorMapper
 import com.nexora.android.core.network.safeApiCall
 import com.nexora.android.core.session.SessionRepository
 import com.nexora.android.domain.session.CustomerInviteResult
+import com.nexora.android.domain.session.ContactTimelineItem
 import com.nexora.android.domain.session.CrmContact
 import com.nexora.android.domain.session.EmployeeInviteResult
 import com.nexora.android.domain.session.NexoraError
@@ -80,6 +81,27 @@ class SupabaseRpcRepository @Inject constructor(
         rpcApi.getCrmContact(
             authorization = authorization,
             request = GetCrmContactRequest(tenantId = tenantId, contactId = contactId)
+        ).toDomain()
+    }
+
+    override suspend fun listContactTimeline(
+        tenantId: String,
+        contactId: String
+    ): NexoraResult<List<ContactTimelineItem>> = authenticatedCall { authorization ->
+        rpcApi.listContactTimeline(
+            authorization = authorization,
+            request = ListContactTimelineRequest(tenantId = tenantId, contactId = contactId)
+        ).map(ContactTimelineItemDto::toDomain)
+    }
+
+    override suspend fun createContactNote(
+        tenantId: String,
+        contactId: String,
+        body: String
+    ): NexoraResult<ContactTimelineItem> = authenticatedCall { authorization ->
+        rpcApi.createContactNote(
+            authorization = authorization,
+            request = CreateContactNoteRequest(tenantId = tenantId, contactId = contactId, body = body)
         ).toDomain()
     }
 

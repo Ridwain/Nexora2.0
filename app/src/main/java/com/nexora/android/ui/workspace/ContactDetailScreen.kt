@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +15,8 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.NoteAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -24,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.nexora.android.domain.session.ContactTimelineItem
+import com.nexora.android.domain.session.ContactTimelineItemType
 import com.nexora.android.domain.session.CrmContact
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -155,8 +161,17 @@ fun ContactDetailScreen(
                             tenantName = tenantName,
                             archiveError = uiState.archiveErrorMessage,
                             refreshError = uiState.refreshErrorMessage,
+                            timelineItems = uiState.timelineItems,
+                            isTimelineLoading = uiState.isTimelineLoading,
+                            timelineError = uiState.timelineErrorMessage,
+                            noteBody = uiState.noteBody,
+                            isAddingNote = uiState.isAddingNote,
+                            addNoteError = uiState.addNoteErrorMessage,
                             onEdit = onEdit,
-                            onArchive = viewModel::showArchiveDialog
+                            onArchive = viewModel::showArchiveDialog,
+                            onNoteBodyChanged = viewModel::onNoteBodyChanged,
+                            onAddNote = { viewModel.addNote(tenantId, contactId) },
+                            onRetryTimeline = { viewModel.loadTimeline(tenantId, contactId) }
                         )
                     }
                 }
@@ -207,8 +222,17 @@ private fun ContactDetailContent(
     tenantName: String,
     archiveError: String?,
     refreshError: String?,
+    timelineItems: List<ContactTimelineItem>,
+    isTimelineLoading: Boolean,
+    timelineError: String?,
+    noteBody: String,
+    isAddingNote: Boolean,
+    addNoteError: String?,
     onEdit: () -> Unit,
-    onArchive: () -> Unit
+    onArchive: () -> Unit,
+    onNoteBodyChanged: (String) -> Unit,
+    onAddNote: () -> Unit,
+    onRetryTimeline: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -280,6 +304,147 @@ private fun ContactDetailContent(
             ContactDetailRow(label = "Updated", value = contact.updatedAt)
         }
     }
+
+    TimelineCard(
+        timelineItems = timelineItems,
+        isTimelineLoading = isTimelineLoading,
+        timelineError = timelineError,
+        noteBody = noteBody,
+        isAddingNote = isAddingNote,
+        addNoteError = addNoteError,
+        onNoteBodyChanged = onNoteBodyChanged,
+        onAddNote = onAddNote,
+        onRetryTimeline = onRetryTimeline
+    )
+}
+
+@Composable
+private fun TimelineCard(
+    timelineItems: List<ContactTimelineItem>,
+    isTimelineLoading: Boolean,
+    timelineError: String?,
+    noteBody: String,
+    isAddingNote: Boolean,
+    addNoteError: String?,
+    onNoteBodyChanged: (String) -> Unit,
+    onAddNote: () -> Unit,
+    onRetryTimeline: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.History,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Timeline",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Text(
+                text = "Notes and activity here belong only to this contact workspace.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedTextField(
+                value = noteBody,
+                onValueChange = onNoteBodyChanged,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 110.dp),
+                minLines = 3,
+                maxLines = 6,
+                label = { Text(text = "Add a note") },
+                placeholder = { Text(text = "Called customer, asked for pricing, follow up next week...") }
+            )
+            Text(
+                text = "${noteBody.length}/${ContactDetailViewModel.MaxNoteBodyLength}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (addNoteError != null) {
+                Text(
+                    text = addNoteError,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            Button(
+                onClick = onAddNote,
+                enabled = noteBody.isNotBlank() && !isAddingNote
+            ) {
+                Icon(Icons.Outlined.NoteAdd, contentDescription = null)
+                Text(
+                    modifier = Modifier.padding(start = 8.dp),
+                    text = if (isAddingNote) "Adding..." else "Add note"
+                )
+            }
+
+            when {
+                isTimelineLoading -> Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator()
+                    Text(text = "Loading timeline...")
+                }
+                timelineError != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = timelineError,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    OutlinedButton(onClick = onRetryTimeline) {
+                        Text(text = "Retry timeline")
+                    }
+                }
+                timelineItems.isEmpty() -> Text(
+                    text = "No timeline yet. Add the first note for this contact.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                else -> timelineItems.forEach { item ->
+                    TimelineItemRow(item = item)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineItemRow(item: ContactTimelineItem) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = when (item.type) {
+                    ContactTimelineItemType.Note -> "Note"
+                    ContactTimelineItemType.Event -> item.eventType?.humanize() ?: "Activity"
+                    ContactTimelineItemType.Unknown -> "Timeline item"
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = item.body ?: item.eventType?.timelineEventLabel() ?: "Activity recorded.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = item.createdAt ?: "Time not available",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
 
 @Composable
@@ -304,4 +469,15 @@ internal fun CrmContact.displayName(): String {
 
 internal fun String.humanize(): String {
     return replace("_", " ").replaceFirstChar { it.uppercase() }
+}
+
+private fun String.timelineEventLabel(): String {
+    return when (this) {
+        "crm_contact_created" -> "Contact was created."
+        "crm_contact_updated" -> "Contact was updated."
+        "crm_contact_archived" -> "Contact was archived."
+        "crm_contact_restored" -> "Contact was restored."
+        "crm_contact_note_created" -> "A note was added."
+        else -> humanize()
+    }
 }

@@ -5,6 +5,7 @@ import com.nexora.android.domain.session.NexoraResult
 import com.nexora.android.testing.MainDispatcherRule
 import com.nexora.android.ui.auth.FakeRpcRepository
 import com.nexora.android.ui.auth.testContact
+import com.nexora.android.ui.auth.testTimelineNote
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -64,5 +65,80 @@ class ContactDetailViewModelTest {
         assertEquals(1, rpcRepository.archiveCrmContactCalls)
         assertTrue(viewModel.uiState.value.archived)
         assertNull(cache.contactFor("tenant-id", "contact-id"))
+    }
+
+    @Test
+    fun timelineLoadSuccessShowsItems() = runTest {
+        val rpcRepository = FakeRpcRepository()
+        rpcRepository.listContactTimelineResult = NexoraResult.Success(listOf(testTimelineNote()))
+        val viewModel = ContactDetailViewModel(rpcRepository, ContactsMemoryCache())
+
+        viewModel.loadTimeline("tenant-id", "contact-id")
+
+        assertEquals(1, rpcRepository.listContactTimelineCalls)
+        assertEquals(1, viewModel.uiState.value.timelineItems.size)
+        assertNull(viewModel.uiState.value.timelineErrorMessage)
+    }
+
+    @Test
+    fun timelineLoadFailureKeepsContactDetailVisible() = runTest {
+        val rpcRepository = FakeRpcRepository()
+        rpcRepository.listContactTimelineResult = NexoraResult.Failure(NexoraError.Network("Timeline failed"))
+        val viewModel = ContactDetailViewModel(rpcRepository, ContactsMemoryCache())
+
+        viewModel.load("tenant-id", "contact-id")
+
+        assertEquals(testContact().firstName, viewModel.uiState.value.contact?.firstName)
+        assertEquals("Timeline failed", viewModel.uiState.value.timelineErrorMessage)
+        assertNull(viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun noteBodyCapsAtMaxLength() = runTest {
+        val viewModel = ContactDetailViewModel(FakeRpcRepository(), ContactsMemoryCache())
+        val longNote = "a".repeat(ContactDetailViewModel.MaxNoteBodyLength + 30)
+
+        viewModel.onNoteBodyChanged(longNote)
+
+        assertEquals(ContactDetailViewModel.MaxNoteBodyLength, viewModel.uiState.value.noteBody.length)
+    }
+
+    @Test
+    fun blankNoteBlocksNetworkCall() = runTest {
+        val rpcRepository = FakeRpcRepository()
+        val viewModel = ContactDetailViewModel(rpcRepository, ContactsMemoryCache())
+
+        viewModel.onNoteBodyChanged("   ")
+        viewModel.addNote("tenant-id", "contact-id")
+
+        assertEquals(0, rpcRepository.createContactNoteCalls)
+        assertEquals("Write a note before adding it.", viewModel.uiState.value.addNoteErrorMessage)
+    }
+
+    @Test
+    fun validNoteCreatesAndPrependsTimelineItem() = runTest {
+        val rpcRepository = FakeRpcRepository()
+        val viewModel = ContactDetailViewModel(rpcRepository, ContactsMemoryCache())
+
+        viewModel.onNoteBodyChanged(" Follow up tomorrow. ")
+        viewModel.addNote("tenant-id", "contact-id")
+
+        assertEquals(1, rpcRepository.createContactNoteCalls)
+        assertEquals("Follow up tomorrow.", rpcRepository.lastContactNoteBody)
+        assertEquals("", viewModel.uiState.value.noteBody)
+        assertEquals(testTimelineNote(), viewModel.uiState.value.timelineItems.first())
+    }
+
+    @Test
+    fun noteCreateFailureKeepsInputAndShowsError() = runTest {
+        val rpcRepository = FakeRpcRepository()
+        rpcRepository.createContactNoteResult = NexoraResult.Failure(NexoraError.Unknown("Create failed"))
+        val viewModel = ContactDetailViewModel(rpcRepository, ContactsMemoryCache())
+
+        viewModel.onNoteBodyChanged("Important note")
+        viewModel.addNote("tenant-id", "contact-id")
+
+        assertEquals("Important note", viewModel.uiState.value.noteBody)
+        assertEquals("Create failed", viewModel.uiState.value.addNoteErrorMessage)
     }
 }

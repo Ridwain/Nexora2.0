@@ -41,6 +41,18 @@ interface SupabaseRpcApi {
         @Body request: GetCrmContactRequest
     ): CrmContactDto
 
+    @POST("rpc/list_contact_timeline")
+    suspend fun listContactTimeline(
+        @Header("Authorization") authorization: String,
+        @Body request: ListContactTimelineRequest
+    ): List<ContactTimelineItemDto>
+
+    @POST("rpc/create_contact_note")
+    suspend fun createContactNote(
+        @Header("Authorization") authorization: String,
+        @Body request: CreateContactNoteRequest
+    ): ContactTimelineItemDto
+
     @POST("rpc/create_crm_contact")
     suspend fun createCrmContact(
         @Header("Authorization") authorization: String,

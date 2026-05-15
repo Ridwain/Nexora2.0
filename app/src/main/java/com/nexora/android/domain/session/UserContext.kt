@@ -42,3 +42,18 @@ data class CrmContact(
     val createdAt: String?,
     val updatedAt: String?
 )
+
+data class ContactTimelineItem(
+    val id: String,
+    val type: ContactTimelineItemType,
+    val body: String?,
+    val eventType: String?,
+    val actorUserId: String?,
+    val createdAt: String?
+)
+
+enum class ContactTimelineItemType {
+    Note,
+    Event,
+    Unknown
+}

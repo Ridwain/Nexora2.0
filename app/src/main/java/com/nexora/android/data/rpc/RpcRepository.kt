@@ -1,6 +1,7 @@
 package com.nexora.android.data.rpc
 
 import com.nexora.android.domain.session.CustomerInviteResult
+import com.nexora.android.domain.session.ContactTimelineItem
 import com.nexora.android.domain.session.CrmContact
 import com.nexora.android.domain.session.EmployeeInviteResult
 import com.nexora.android.domain.session.NexoraResult
@@ -32,6 +33,17 @@ interface RpcRepository {
         tenantId: String,
         contactId: String
     ): NexoraResult<CrmContact>
+
+    suspend fun listContactTimeline(
+        tenantId: String,
+        contactId: String
+    ): NexoraResult<List<ContactTimelineItem>>
+
+    suspend fun createContactNote(
+        tenantId: String,
+        contactId: String,
+        body: String
+    ): NexoraResult<ContactTimelineItem>
 
     suspend fun createCrmContact(
         tenantId: String,
