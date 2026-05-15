@@ -29,6 +29,12 @@ interface SupabaseRpcApi {
         @Body request: ListArchivedCrmContactsRequest
     ): List<CrmContactDto>
 
+    @POST("rpc/search_crm_contacts")
+    suspend fun searchCrmContacts(
+        @Header("Authorization") authorization: String,
+        @Body request: SearchCrmContactsRequest
+    ): List<CrmContactDto>
+
     @POST("rpc/get_crm_contact")
     suspend fun getCrmContact(
         @Header("Authorization") authorization: String,

@@ -52,6 +52,27 @@ class SupabaseRpcRepository @Inject constructor(
             ).map(CrmContactDto::toDomain)
         }
 
+    override suspend fun searchCrmContacts(
+        tenantId: String,
+        query: String?,
+        lifecycleStage: String?,
+        leadStatus: String?,
+        sort: String,
+        limit: Int
+    ): NexoraResult<List<CrmContact>> = authenticatedCall { authorization ->
+        rpcApi.searchCrmContacts(
+            authorization = authorization,
+            request = SearchCrmContactsRequest(
+                tenantId = tenantId,
+                query = query,
+                lifecycleStage = lifecycleStage,
+                leadStatus = leadStatus,
+                sort = sort,
+                limit = limit
+            )
+        ).map(CrmContactDto::toDomain)
+    }
+
     override suspend fun getCrmContact(
         tenantId: String,
         contactId: String

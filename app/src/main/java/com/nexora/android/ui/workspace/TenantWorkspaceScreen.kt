@@ -19,12 +19,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Apartment
 import androidx.compose.material.icons.outlined.Business
+import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.ConfirmationNumber
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Handshake
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material3.AssistChip
@@ -33,11 +35,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -527,30 +533,176 @@ private fun ContactsTab(
                         leadingIcon = { Icon(Icons.Outlined.Inventory2, contentDescription = null) }
                     )
                     AssistChip(
-                        onClick = { viewModel.load(tenantId) },
+                        onClick = { viewModel.refresh(tenantId) },
                         label = { Text(text = "Refresh") }
                     )
                 }
             }
         }
 
+        ContactSearchAndFilters(
+            uiState = uiState,
+            tenantId = tenantId,
+            onQueryChanged = viewModel::onSearchQueryChanged,
+            onLifecycleStageSelected = viewModel::onLifecycleStageSelected,
+            onLeadStatusSelected = viewModel::onLeadStatusSelected,
+            onSortSelected = viewModel::onSortSelected,
+            onClear = viewModel::clearSearch
+        )
+
         val errorMessage = uiState.errorMessage
         when {
             uiState.isInitialLoading -> LoadingContacts()
             errorMessage != null -> ContactsError(
                 error = errorMessage,
-                onRetry = { viewModel.load(tenantId) }
+                onRetry = { viewModel.refresh(tenantId) }
             )
-            uiState.contacts.isEmpty() -> EmptyContacts(
+            uiState.visibleContacts.isEmpty() -> EmptyContacts(
                 tenantName = tenantName,
+                isSearchActive = uiState.isSearchActive,
                 onAddContact = { onAddContact(tenantId, tenantName) }
             )
             else -> ContactsList(
-                contacts = uiState.contacts,
+                contacts = uiState.visibleContacts,
                 refreshErrorMessage = uiState.refreshErrorMessage,
-                onRetry = { viewModel.load(tenantId) },
+                searchErrorMessage = uiState.searchErrorMessage,
+                isSearchLoading = uiState.isSearchLoading,
+                onRetry = { viewModel.refresh(tenantId) },
                 onOpenContact = { contactId -> onOpenContact(tenantId, tenantName, contactId) }
             )
+        }
+    }
+}
+
+@Composable
+private fun ContactSearchAndFilters(
+    uiState: ContactsUiState,
+    tenantId: String,
+    onQueryChanged: (tenantId: String, query: String) -> Unit,
+    onLifecycleStageSelected: (tenantId: String, lifecycleStage: String?) -> Unit,
+    onLeadStatusSelected: (tenantId: String, leadStatus: String?) -> Unit,
+    onSortSelected: (tenantId: String, sortOption: ContactSortOption) -> Unit,
+    onClear: (tenantId: String) -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = { onQueryChanged(tenantId, it) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text(text = "Search contacts") },
+                placeholder = { Text(text = "Name, email, phone, company, job title") },
+                leadingIcon = {
+                    Icon(Icons.Outlined.Search, contentDescription = null)
+                },
+                trailingIcon = {
+                    if (uiState.isSearchActive) {
+                        IconButton(onClick = { onClear(tenantId) }) {
+                            Icon(Icons.Outlined.Clear, contentDescription = "Clear search")
+                        }
+                    }
+                }
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ContactFilterMenu(
+                    label = LifecycleStageFilterOptions.firstOrNull {
+                        it.value == uiState.selectedLifecycleStage
+                    }?.label ?: "All stages",
+                    options = LifecycleStageFilterOptions,
+                    onSelected = { onLifecycleStageSelected(tenantId, it.value) }
+                )
+                ContactFilterMenu(
+                    label = LeadStatusFilterOptions.firstOrNull {
+                        it.value == uiState.selectedLeadStatus
+                    }?.label ?: "All statuses",
+                    options = LeadStatusFilterOptions,
+                    onSelected = { onLeadStatusSelected(tenantId, it.value) }
+                )
+                ContactSortMenu(
+                    selectedSort = uiState.selectedSort,
+                    onSelected = { onSortSelected(tenantId, it) }
+                )
+            }
+
+            when {
+                uiState.isSearchLoading -> Text(
+                    text = "Searching...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                uiState.searchErrorMessage != null -> Text(
+                    text = "Search failed. Showing last available results.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                uiState.isSearchActive -> Text(
+                    text = "${uiState.visibleContacts.size} matching contacts",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactFilterMenu(
+    label: String,
+    options: List<ContactFilterOption>,
+    onSelected: (ContactFilterOption) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        AssistChip(
+            onClick = { expanded = true },
+            label = { Text(text = label) }
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(text = option.label) },
+                    onClick = {
+                        expanded = false
+                        onSelected(option)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactSortMenu(
+    selectedSort: ContactSortOption,
+    onSelected: (ContactSortOption) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        AssistChip(
+            onClick = { expanded = true },
+            label = { Text(text = selectedSort.label) }
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            ContactSortOption.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(text = option.label) },
+                    onClick = {
+                        expanded = false
+                        onSelected(option)
+                    }
+                )
+            }
         }
     }
 }
@@ -594,6 +746,7 @@ private fun ContactsError(
 @Composable
 private fun EmptyContacts(
     tenantName: String,
+    isSearchActive: Boolean,
     onAddContact: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -609,18 +762,24 @@ private fun EmptyContacts(
                 modifier = Modifier.size(34.dp)
             )
             Text(
-                text = "No contacts yet",
+                text = if (isSearchActive) "No contacts match this search" else "No contacts yet",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "Add the first CRM contact for $tenantName. It will not appear in other company workspaces.",
+                text = if (isSearchActive) {
+                    "Try changing the search text, filters, or sort for $tenantName."
+                } else {
+                    "Add the first CRM contact for $tenantName. It will not appear in other company workspaces."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            Button(onClick = onAddContact) {
-                Text(text = "Add contact")
+            if (!isSearchActive) {
+                Button(onClick = onAddContact) {
+                    Text(text = "Add contact")
+                }
             }
         }
     }
@@ -630,10 +789,41 @@ private fun EmptyContacts(
 private fun ContactsList(
     contacts: List<CrmContact>,
     refreshErrorMessage: String?,
+    searchErrorMessage: String?,
+    isSearchLoading: Boolean,
     onRetry: () -> Unit,
     onOpenContact: (contactId: String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (isSearchLoading) {
+            Text(
+                text = "Searching...",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        if (searchErrorMessage != null) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Search failed. Showing last available contacts.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AssistChip(
+                        onClick = onRetry,
+                        label = { Text(text = "Retry") }
+                    )
+                }
+            }
+        }
         if (refreshErrorMessage != null) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Row(

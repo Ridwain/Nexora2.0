@@ -156,6 +156,7 @@ class FakeRpcRepository : RpcRepository {
     var lastOwnerTenantPhone: String? = null
     var listCrmContactsCalls = 0
     var listArchivedCrmContactsCalls = 0
+    var searchCrmContactsCalls = 0
     var getCrmContactCalls = 0
     var createCrmContactCalls = 0
     var updateCrmContactCalls = 0
@@ -165,11 +166,23 @@ class FakeRpcRepository : RpcRepository {
     var lastCrmContactId: String? = null
     var lastCrmContactFirstName: String? = null
     var lastCrmContactEmail: String? = null
+    var lastCrmContactSearchQuery: String? = null
+    var lastCrmContactLifecycleStage: String? = null
+    var lastCrmContactLeadStatus: String? = null
+    var lastCrmContactSort: String? = null
     var getUserContextsResult: NexoraResult<List<UserContext>> = NexoraResult.Success(emptyList())
     var createOwnerTenantResult: NexoraResult<UserContext> = NexoraResult.Success(testContext())
     var listCrmContactsResult: NexoraResult<List<CrmContact>> = NexoraResult.Success(emptyList())
     var listArchivedCrmContactsResult: NexoraResult<List<CrmContact>> = NexoraResult.Success(emptyList())
     var listCrmContactsHandler: (suspend (String) -> NexoraResult<List<CrmContact>>)? = null
+    var searchCrmContactsResult: NexoraResult<List<CrmContact>> = NexoraResult.Success(emptyList())
+    var searchCrmContactsHandler: (suspend (
+        tenantId: String,
+        query: String?,
+        lifecycleStage: String?,
+        leadStatus: String?,
+        sort: String
+    ) -> NexoraResult<List<CrmContact>>)? = null
     var getCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
     var createCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
     var updateCrmContactResult: NexoraResult<CrmContact> = NexoraResult.Success(testContact())
@@ -204,6 +217,26 @@ class FakeRpcRepository : RpcRepository {
         listArchivedCrmContactsCalls++
         lastCrmContactTenantId = tenantId
         return listArchivedCrmContactsResult
+    }
+
+    override suspend fun searchCrmContacts(
+        tenantId: String,
+        query: String?,
+        lifecycleStage: String?,
+        leadStatus: String?,
+        sort: String,
+        limit: Int
+    ): NexoraResult<List<CrmContact>> {
+        searchCrmContactsCalls++
+        lastCrmContactTenantId = tenantId
+        lastCrmContactSearchQuery = query
+        lastCrmContactLifecycleStage = lifecycleStage
+        lastCrmContactLeadStatus = leadStatus
+        lastCrmContactSort = sort
+        searchCrmContactsHandler?.let { handler ->
+            return handler(tenantId, query, lifecycleStage, leadStatus, sort)
+        }
+        return searchCrmContactsResult
     }
 
     override suspend fun getCrmContact(tenantId: String, contactId: String): NexoraResult<CrmContact> {

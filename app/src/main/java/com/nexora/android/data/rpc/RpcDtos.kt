@@ -80,6 +80,15 @@ data class ListArchivedCrmContactsRequest(
     @SerializedName("p_tenant_id") val tenantId: String
 )
 
+data class SearchCrmContactsRequest(
+    @SerializedName("p_tenant_id") val tenantId: String,
+    @SerializedName("p_query") val query: String? = null,
+    @SerializedName("p_lifecycle_stage") val lifecycleStage: String? = null,
+    @SerializedName("p_lead_status") val leadStatus: String? = null,
+    @SerializedName("p_sort") val sort: String = "newest",
+    @SerializedName("p_limit") val limit: Int = 100
+)
+
 data class GetCrmContactRequest(
     @SerializedName("p_tenant_id") val tenantId: String,
     @SerializedName("p_contact_id") val contactId: String

@@ -19,6 +19,15 @@ interface RpcRepository {
 
     suspend fun listArchivedCrmContacts(tenantId: String): NexoraResult<List<CrmContact>>
 
+    suspend fun searchCrmContacts(
+        tenantId: String,
+        query: String? = null,
+        lifecycleStage: String? = null,
+        leadStatus: String? = null,
+        sort: String = "newest",
+        limit: Int = 100
+    ): NexoraResult<List<CrmContact>>
+
     suspend fun getCrmContact(
         tenantId: String,
         contactId: String
